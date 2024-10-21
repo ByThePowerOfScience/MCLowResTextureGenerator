@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "btpos.mcmods.haikutest.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "haikutest.refmap.json",
+  "mixins": [
+    "MIOSupplier"
+  ],
+  "client": [
+    "MStitcher"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
