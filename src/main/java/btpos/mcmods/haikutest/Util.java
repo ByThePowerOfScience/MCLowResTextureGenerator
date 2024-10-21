@@ -26,7 +26,7 @@ public class Util {
      * @return dimensions of image
      * @throws IOException if the file is not a known image
      */
-    public static Dimension getImageDimension(String path, InputStream is, Logger log) throws IOException {
+    public static Dimension getImageDimension(InputStream is) throws IOException {
         for (ImageReader reader : pngReaders) {
             try {
                 ImageInputStream stream = ImageIO.createImageInputStream(is);
@@ -35,14 +35,12 @@ public class Util {
                 int height = reader.getHeight(reader.getMinIndex());
                 
                 return new Dimension(width, height);
-            } catch (IOException e) {
-                log.warn("Error reading: " + path, e);
             } finally {
                 reader.reset();
             }
         }
         
-        throw new IOException("Not a known image file: " + path);
+        throw new IOException("Not a known image file.");
     }
     
     // TODO: Call when all textures are done being read in
