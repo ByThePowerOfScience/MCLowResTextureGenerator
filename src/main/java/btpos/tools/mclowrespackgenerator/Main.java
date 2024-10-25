@@ -1,13 +1,7 @@
 package btpos.tools.mclowrespackgenerator;
 
 import net.coobird.thumbnailator.Thumbnailator;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.MissingArgumentException;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.file.PathUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -20,11 +14,16 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Scanner;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -35,36 +34,28 @@ import java.util.zip.ZipOutputStream;
 
 @SuppressWarnings("unchecked") public class Main {
 	private static final Pattern ASSETS_PATTERN = Pattern.compile("^assets/[\\w_-]+/textures/(?:block|item)");
-	
-	private static Scanner input;
+	public static final int DEFAULT_MAX_SIZE = 256;
 	
 	private static Args cli;
 	
 	
-	public static void main(String[] args) throws ParseException, IOException {
-		input = new Scanner(System.in);
+	public static void main(String[] args) throws ParseException {
+		ArgHandler argHandler = new ArgHandler();
+		cli = argHandler.getDefaultArgs(argHandler.checkCliArgs(args));
 		
-		Args arguments = handleArgs(args);
-		cli = arguments;
 		
-		Path outputPath = cli.outputDir.toPath();
-//		.toPath().resolve("downscaled").toFile()
-		cli.outputDir = cli.outputDir.toPath().resolve("downscaled").toFile();
-		cli.outputDir.mkdir();
-		cli.outputDir = cli.outputDir.toPath().resolve("downscaled_pack{}.zip").toFile();
-		
-		arguments.inputFiles.stream()
-		                    .map(Main::fileToZipFile)
-		                    .filter(Objects::nonNull)
-		                    .collect(Collectors.groupingBy(Main::getPackFormatFromZip))
-		                    .forEach(Main::fileLogic);
+		cli.inputFiles.stream()
+		              .map(Main::fileToZipFile)
+		              .filter(Objects::nonNull)
+		              .collect(Collectors.groupingBy(Main::getPackFormatFromZip))
+		              .forEach(Main::fileLogic);
 	}
 	
 	private static void fileLogic(Integer packFormat, List<ZipFile> packs) {
 		if (packFormat == null || packFormat == -1)
 			return;
 		
-		File f = new File(cli.outputDir.getName().replace("{}", packFormat.toString()));
+		File f = new File(cli.outputFile.getName().replace("{}", packFormat.toString()));
 		if (f.exists()) {
 			System.out.println("File already exists: " + f.getPath());
 			return;
@@ -175,109 +166,19 @@ import java.util.zip.ZipOutputStream;
 		e.printStackTrace(System.err);
 	}
 	
-	static Args handleArgs(String[] args) throws ParseException {
-		Option inputFilesOption = Option.builder("i")
-		                                .longOpt("input")
-		                                .required()
-		                                .desc("Input files to create a resource pack for, or directory containing files.")
-		                                .hasArgs()
-		                                .type(String.class)
-		                                .build();
-		
-		Option outputFileOption = Option.builder("o")
-		                                .longOpt("output-zip")
-		                                .desc("Name of the output zip or the output folder to put it in.")
-		                                .hasArg()
-		                                .argName("name")
-		                                .type(String.class)
-		                                .build();
-		
-		Option widthOption = Option.builder("w")
-		                           .longOpt("width")
-		                           .desc("Maximum width (pixels) of textures after resize. Default: 128.")
-		                           .hasArg()
-		                           .type(Integer.class)
-		                           .build();
-		
-		Option heightOption = Option.builder("h")
-		                            .longOpt("height")
-		                            .desc("Maximum height (pixels) of textures after resize. Default: 128.")
-		                            .hasArg()
-		                            .type(Integer.class)
-		                            .build();
-		
-		Options o = new Options().addOption(inputFilesOption)
-		                         .addOption(outputFileOption)
-		                         .addOption(widthOption)
-		                         .addOption(heightOption);
-		
-		CommandLine parsed = new DefaultParser().parse(o, args);
-		
-		List<File> inputFiles = Arrays.stream(parsed.getOptionValues(inputFilesOption))
-		                              .map(File::new)
-		                              .collect(Collectors.toList());
-		
-		Integer width = parsed.getParsedOptionValue(widthOption, () -> getArg("maximum width", Integer::valueOf));
-		
-		Integer height = parsed.getParsedOptionValue(heightOption, () -> getArg("maximum height", Integer::valueOf));
-		
-		if (inputFiles.isEmpty())
-			throw new MissingArgumentException(inputFilesOption);
-		
-		File outputFile = new File(parsed.getParsedOptionValue(
-				outputFileOption,
-				() -> getArg(
-						"folder to put the output pack(s) in (e.g. \"C:\\Users\\me\\Desktop\\\" [without quotes]) (\".\" or blank = current working directory)",
-						(String s) -> s.isEmpty() || ".".equals(s) ? System.getProperty("user.dir") : s
-				)
-		));
-		
-		return validateArgs(new Args(width, height, inputFiles, outputFile));
-	}
-	
-	private static <T> T getArg(String text, Function<String, T> converter) {
-		System.out.print("Enter " + text + ": ");
-		return converter.apply(input.nextLine());
-	}
 	
 	private static Args validateArgs(Args args) {
-		// verify all input files exist
-		AtomicBoolean foundNonExistentFile = new AtomicBoolean(false);
-		args.inputFiles.stream()
-		               .filter(file -> !file.exists() && !file.isDirectory())
-		               .forEach(f -> {
-			               System.out.println("File not found: \"" + f + "\".");
-			               foundNonExistentFile.set(true);
-		               });
-		
-		if (foundNonExistentFile.get())
-			throw new IllegalArgumentException("Input files must exist.");
-		
-		args.inputFiles = args.inputFiles.stream()
-		                                 .flatMap(file -> {
-			                                 if (file.isDirectory()) {
-				                                 try {
-					                                 return FileUtils.streamFiles(file, true, "zip", "jar");
-				                                 } catch (IOException e) {
-					                                 throw new RuntimeException(e);
-				                                 }
-			                                 } else {
-				                                 return Stream.of(file);
-			                                 }
-		                                 })
-		                                 .collect(Collectors.toList());
-		
 		
 		// Handle output file
 		try {
-			Files.createDirectories(args.outputDir.toPath().getParent());
+			Files.createDirectories(args.outputFile.toPath().getParent());
 		} catch (IOException e) {
-			System.err.println("Unable to create directories for " + args.outputDir.toPath());
+			System.err.println("Unable to create directories for " + args.outputFile.toPath());
 			throw new RuntimeException(e);
 		}
 		
-		if (!args.outputDir.getName().endsWith(".zip"))
-			args.outputDir = new File(args.outputDir.toPath() + ".zip");
+		if (!args.outputFile.getName().endsWith(".zip"))
+			args.outputFile = new File(args.outputFile.toPath() + ".zip");
 		
 		return args;
 	}
@@ -312,17 +213,16 @@ import java.util.zip.ZipOutputStream;
 	}
 	
 	public static class Args {
-		public final int maxWidth;
-		public final int maxHeight;
+		public Integer maxWidth;
+		public Integer maxHeight;
 		public List<File> inputFiles;
-		public File outputDir;
-		public String fileName = "downscaled.zip";
+		public File outputFile;
 		
-		public Args(int maxWidth, int maxHeight, List<File> inputFiles, File outputDir) {
+		public Args(int maxWidth, int maxHeight, List<File> inputFiles, File outputFile) {
 			this.maxWidth = maxWidth;
 			this.maxHeight = maxHeight;
 			this.inputFiles = inputFiles;
-			this.outputDir = outputDir;
+			this.outputFile = outputFile;
 		}
 	}
 	
