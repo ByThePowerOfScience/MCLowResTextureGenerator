@@ -5,11 +5,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.file.PathUtils;
 
 import javax.imageio.ImageIO;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.UIManager;
 import java.awt.Dimension;
-import java.awt.EventQueue;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -36,7 +32,8 @@ import static btpos.tools.mclowrespackgenerator.Util.fileBad;
 
 public class Main {
 	
-	private Args args;
+	private static final Path outDirectory = Files.createTempDirectory("mcdownscaler");
+	private static Args args;
 	
 	private static final boolean IS_HEADLESS = java.awt.GraphicsEnvironment.isHeadless();
 	
@@ -44,42 +41,22 @@ public class Main {
 	
 	private static final String packmcmeta = "{\n\t\"pack\":{\n\t\t\"pack_format\": 15,\n\t\t \"description\": \"Compressed textures\"\n\t}\n}";
 	
+	private static final UserInterfaceHandler uiHandler = UserInterfaceHandler.get(IS_HEADLESS);
 	
 	public static void main(String[] argsIn) {
-		try {
-			if (System.getProperty("os.name").toLowerCase().contains("windows"))
-				UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (Exception ignored) {
+		uiHandler.onStart();
+		
+		args = new ArgHandler(IS_HEADLESS).getArgs(argsIn);
+		
+		if (args.outputFile.exists()) {
+			args.outputFile.createNewFile();
 		}
 		
-		
-		JFrame jFrame;
-		if (!IS_HEADLESS) {
-			jFrame = UIGenerators.getConsolePanel();
-			
-			EventQueue.invokeLater(() -> jFrame.setVisible(true));
-		} else {
-			jFrame = null;
-		}
-		
-		new Main().fileLogic(argsIn);
-		
-		if (jFrame != null)
-			jFrame.dispose();
+		doCompression();
 	}
 	
 	
-	public void fileLogic(String[] argsIn) {
-		ArgHandler argHandler = new ArgHandler();
-		if (IS_HEADLESS)
-			args = argHandler.checkCliArgs(argsIn);
-		else
-			args = argHandler.getUIArgs();
-		
-		args.outputFile.createNewFile();
-		
-		final Path outDirectory = Files.createTempDirectory("mcdownscaler");
-		
+	public static void doCompression() {
 		try {
 			List<Pair<String, Supplier<InputStream>>> name_to_stream = args.inputFiles.stream()
 			                                                                          .map(file -> catcher(() -> new ZipFile(file), null, e -> Util.fileBad(file.getName(), e)))
@@ -92,65 +69,40 @@ public class Main {
 			                                                                          })
 			                                                                          .collect(Collectors.toList());
 			
-			PriorityQueue<Pair<Integer, Pair<String, Supplier<InputStream>>>> texturesHeap = new PriorityQueue<>(Comparator.comparingInt(Pair<Integer, Pair<String, Supplier<InputStream>>>::getLeft).reversed());
+			// max heap of total size in pixels
+			PriorityQueue<TextureEntry> texturesHeap = new PriorityQueue<>(Comparator.comparingInt(TextureEntry::getTotalSize).reversed());
 			
 			AtomicInteger totalSize = new AtomicInteger(0);
 			
 			name_to_stream.stream()
-			              .map(name_stream -> {
-				              Dimension pngDimension = catcher(() -> Util.getPngDimension(name_stream.left, name_stream.right.get()), null, (e) -> fileBad(name_stream.left, e));
-				              if (pngDimension == null)
-					              return null;
-				              return new Pair<>(pngDimension, name_stream);
-			              }).filter(Objects::nonNull)
-			              .map(dim_pair -> dim_pair.lmap(dim_pair.left.width * dim_pair.left.height))
-			              .peek(size_pair -> totalSize.addAndGet(size_pair.left))
+			              .map(str_supp -> new TextureEntry(str_supp.left, str_supp.right))
+			              .peek(entry -> totalSize.addAndGet(entry.getTotalSize()))
 			              .forEach(texturesHeap::add);
 			
 			boolean hasOperated = false;
 			
-			while (!texturesHeap.isEmpty() && totalSize.get() >= MAX_ATLAS_SIZE) {
+			System.out.println("Starting combined texture size (pixels): " + totalSize.get());
+			
+			
+			while (!texturesHeap.isEmpty() && (!isAutoscale() || totalSize.get() >= MAX_ATLAS_SIZE)) {
 				hasOperated = true;
-				Pair<Integer, Pair<String, Supplier<InputStream>>> tuple = texturesHeap.poll();
-				Integer oldSize = tuple.left;
-				String name = tuple.right.left;
-				Supplier<InputStream> is_get = tuple.right.right;
+				TextureEntry oldEntry = texturesHeap.poll();
+				int oldSize = oldEntry.getTotalSize();
 				
+				TextureEntry newEntry;
 				try {
-					BufferedImage img = ImageIO.read(is_get.get());
-					if (img == null) {
-						System.err.println("Image null somehow idk");
-						continue;
-					}
-					
-					int square = Util.getClosestPowerOf2(Math.max(img.getWidth(), img.getHeight()));
-					
-					System.out.println("Compressing: " + name);
-					img = Thumbnailator.createThumbnail(img, square, square);
-					
-					int newSize = img.getHeight() * img.getWidth();
-					totalSize.addAndGet(newSize - oldSize); // update total size
-					
-					
-					Path outPath = outDirectory.resolve(Paths.get(name));
-					FileUtils.createParentDirectories(outPath.toFile());
-					
-					try (OutputStream outFile = Files.newOutputStream(outPath)) {
-						ImageIO.write(img, PathUtils.getExtension(outPath), outFile);
-					}
-					
-					texturesHeap.add(new Pair<>(
-							newSize,
-							new Pair<>(
-									name,
-									() -> catcher(() -> Files.newInputStream(outPath), null, e -> fileBad(outPath.toString(), e))
-							)
-					));
-					
-				} catch (IOException e) {
-					fileBad(name, e);
+					newEntry = compressTexture(oldEntry);
+				} catch (Exception e) {
+					fileBad(oldEntry.path, e);
+					continue;
 				}
+				
+				totalSize.addAndGet(newEntry.getTotalSize() - oldSize); // update total size
+				
+				if (isAutoscale())
+					texturesHeap.add(newEntry); // put back on the heap for possible re-resizing if needed
 			}
+			
 			
 			String displayText;
 			if (hasOperated) {
@@ -163,12 +115,44 @@ public class Main {
 				displayText = "Nothing to do!";
 			}
 			
-			EventQueue.invokeAndWait(() -> JOptionPane.showMessageDialog(null, displayText));
+			uiHandler.onFinish(displayText);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		
 	}
+	
+	private static TextureEntry compressTexture(TextureEntry entry) {
+		try (InputStream is = entry.getter.get()) {
+			BufferedImage img = ImageIO.read(is);
+			if (img == null) {
+				throw new IOException("Image read as null: " + entry.path);
+			}
+			
+			int square = isAutoscale() ? entry.getBestCap() : args.maxScale;
+			
+			System.out.println("Compressing: " + entry.path);
+			img = Thumbnailator.createThumbnail(img, square, square); // does keep the aspect ratio the same
+			
+			
+			Path outPath = outDirectory.resolve(Paths.get(entry.path));
+			FileUtils.createParentDirectories(outPath.toFile());
+			
+			try (OutputStream outFile = Files.newOutputStream(outPath)) {
+				ImageIO.write(img, PathUtils.getExtension(outPath), outFile);
+			}
+			
+			return new TextureEntry(
+					entry.path,
+					() -> catcher(() -> Files.newInputStream(outPath), null, e -> fileBad(outPath.toString(), e)),
+					new Dimension(img.getWidth(), img.getHeight())
+			);
+		}
+	}
+	
+	private static boolean isAutoscale() {
+		return args.maxScale == null;
+	}
+	
 	
 	public static void pack(Path sourceDirPath, String zipFilePath) throws IOException {
 		File f = new File(zipFilePath);

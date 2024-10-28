@@ -18,6 +18,19 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class ArgHandler {
+	private final boolean isHeadless;
+	
+	public ArgHandler(boolean isHeadless) {
+		this.isHeadless = isHeadless;
+	}
+	
+	public Args getArgs(String[] args) {
+		if (isHeadless)
+			return checkCliArgs(args);
+		else
+			return getUIArgs();
+	}
+	
 	public Args checkCliArgs(String[] args) throws ParseException {
 		Option inputFilesOption = Option.builder("i")
 		                                .required()
@@ -35,12 +48,13 @@ public class ArgHandler {
 		                                .type(File.class)
 		                                .build();
 		
-		Option widthOption = Option.builder("m")
-		                           .longOpt("max-scale")
-		                           .desc("Maximum size (in pixels) of block and item textures. Accounts for animated textures.\nIf unset, downscales to the minimum size required for the GPU to be able to load all textures.")
-		                           .hasArg()
-		                           .type(Integer.class)
-		                           .build();
+		Option sizeOption = Option.builder("s")
+		                          .longOpt("max-size")
+		                          .desc("Maximum size (in pixels) of block and item textures. Accounts for animated textures.\n" +
+				                                "If unset, downscales all textures to the minimum size required for the GPU to be able to load the texture atlas.")
+		                          .hasArg()
+		                          .type(Integer.class)
+		                          .build();
 		
 		Option formatOption = Option.builder("p")
 		                            .longOpt("pack-format")
@@ -51,16 +65,14 @@ public class ArgHandler {
 		
 		Options o = new Options().addOption(inputFilesOption)
 		                         .addOption(outputFileOption)
-		                         .addOption(widthOption)
+		                         .addOption(sizeOption)
 		                         .addOption(formatOption);
 		
 		CommandLine parsed = new DefaultParser().parse(o, args);
 		
 		return new Args(
-				parsed.getParsedOptionValue(widthOption),
-				Optional.ofNullable(parsed.getOptionValues(inputFilesOption))
-				        .map(names -> Arrays.stream(names).map(File::new).collect(Collectors.toList()))
-				        .orElse(null),
+				parsed.getParsedOptionValue(sizeOption, (Integer) null),
+				Arrays.stream(parsed.getOptionValues(inputFilesOption)).map(File::new).collect(Collectors.toList()),
 				parsed.getParsedOptionValue(outputFileOption, new File("downscaled.zip"))
 		);
 	}
@@ -70,20 +82,13 @@ public class ArgHandler {
 		
 		File outputFile = getOutputFile();
 		
-		int autoscale = JOptionPane.showOptionDialog(
-				null,
-				"Autoscale textures?",
-				"",
-				JOptionPane.YES_NO_OPTION,
-				JOptionPane.PLAIN_MESSAGE,
-				null,
-				null,
-				null
-		);
+		int autoscale = JOptionPane.showConfirmDialog(null, "Autoscale textures?");
 		
 		Integer maxScale = null;
-		if (autoscale != JOptionPane.YES_OPTION) {
+		if (autoscale == JOptionPane.NO_OPTION) {
 			maxScale = getWidth();
+		} else if (autoscale == JOptionPane.CANCEL_OPTION) {
+			System.exit(0);
 		}
 		
 		return new Args(maxScale, inputFiles, outputFile);

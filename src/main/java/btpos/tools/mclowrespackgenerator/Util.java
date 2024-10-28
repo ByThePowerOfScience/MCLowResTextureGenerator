@@ -52,6 +52,7 @@ public class Util {
 	
 	/**
 	 * Gets image dimensions for given file
+	 *
 	 * @param is image file
 	 * @return dimensions of image
 	 * @throws IOException if the file is not a known image
@@ -59,7 +60,7 @@ public class Util {
 	public static Dimension getPngDimension(String name, InputStream is) throws IOException {
 		Iterator<ImageReader> iter = ImageIO.getImageReadersBySuffix("png"); // TODO can I optimize this to not have to search every single time
 		
-		while(iter.hasNext()) {
+		while (iter.hasNext()) {
 			ImageReader reader = iter.next();
 			
 			try {
@@ -80,27 +81,27 @@ public class Util {
 		throw new IOException("Not a known image file: " + name);
 	}
 	
-	static boolean isTexture(String name) {
+	public static boolean isTexture(String name) {
 		return ASSETS_PATTERN.matcher(name).find() && name.endsWith(".png");
 	}
 	
-	static void fileBad(ZipEntry entry, Exception e) {
+	public static void fileBad(ZipEntry entry, Exception e) {
 		fileBad(entry.getName(), e);
 	}
 	
-	static void fileBad(Pair<? extends ZipEntry, ?> entry, Exception e) {
+	public static void fileBad(Pair<? extends ZipEntry, ?> entry, Exception e) {
 		fileBad(entry.left.getName(), e);
 	}
 	
-	static void fileBad(String name, Exception e) {
+	public static void fileBad(String name, Exception e) {
 		System.out.println("Error reading file: " + name);
 		e.printStackTrace(System.err);
 	}
 	
-	static int getClosestPowerOf2(final int i) {
+	public static int getClosestPowerOf2(final int i) {
 		// there's a better way to do this but idc enough
 		int out = 2;
-		while (out < i) {
+		while (i > out) {
 			out *= 2;
 		}
 		return out / 2;

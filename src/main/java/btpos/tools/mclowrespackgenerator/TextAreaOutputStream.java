@@ -176,6 +176,7 @@ public class TextAreaOutputStream
 				if (don >= 100) {
 					break;
 				}
+				textArea.setCaretPosition(textArea.getDocument().getLength());
 			}
 			if (don == lines.size()) {
 				lines.clear();

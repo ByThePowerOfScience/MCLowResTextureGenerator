@@ -3,18 +3,19 @@ package btpos.tools.mclowrespackgenerator;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.text.DefaultCaret;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 
 public class UIGenerators {
-	static JFrame getConsolePanel() {
+	public static JFrame enableConsolePanel() {
 		JFrame jFrame = new JFrame();
 		jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		JTextArea jTextArea = new JTextArea();
 		JScrollPane jsp = new JScrollPane(jTextArea, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-		jsp.getVerticalScrollBar().addAdjustmentListener(e -> jTextArea.select(jTextArea.getHeight() + 1000, 0));
 		jTextArea.setEditable(false);
+		
 		
 		TextAreaOutputStream tex = new TextAreaOutputStream(jTextArea);
 		
@@ -32,7 +33,7 @@ public class UIGenerators {
 		System.setErr(splitConsoleStream);
 		
 		jFrame.setSize(500, 300);
-		jFrame.add(jTextArea);
+		jFrame.add(jsp);
 		jFrame.setLocationRelativeTo(null);
 		
 		return jFrame;
