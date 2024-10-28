@@ -25,6 +25,5 @@ Basically just download the jar and double-click to run it, or use `java -jar <n
 1. In the first file picker that pops up, select all of the mods/resource packs you want the tool to scan.
 2. Set the resource pack that should be generated in the next file picker. 
 3. Select if you want to use the autoscaler or use a set maximum size. (only powers of 2 are supported for obvious reasons, but the command line allows any size)
-   - (shoot, I forgot to account for long animated textures on the manual sizer...)
 4. Wait for the resource pack to finish generating, then move it to your resource packs folder.
 5. If you can load the game, select the resource pack in-game. Otherwise you'll need to manually add it in `options.txt` so MC doesn't try to load the old oversized ones.
