@@ -12,6 +12,7 @@ import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.EventQueue;
 import java.io.File;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -63,18 +64,31 @@ public class ArgHandler {
 		                            .type(Integer.class)
 		                            .build();
 		
+		Option maxAtlasSizeOption = Option.builder("t")
+		                            .longOpt("total-size")
+		                            .desc("The target size for all textures combined, in case the autoscaling doesn't go far enough and you still need them smaller.")
+		                            .hasArg()
+		                            .type(Long.class)
+		                            .build();
+		
 		Options o = new Options().addOption(inputFilesOption)
 		                         .addOption(outputFileOption)
 		                         .addOption(sizeOption)
-		                         .addOption(formatOption);
+		                         .addOption(formatOption)
+		                         .addOption(maxAtlasSizeOption);
 		
 		CommandLine parsed = new DefaultParser().parse(o, args);
 		
-		return new Args(
+		Args a = new Args(
 				parsed.getParsedOptionValue(sizeOption, (Integer) null),
 				Arrays.stream(parsed.getOptionValues(inputFilesOption)).map(File::new).collect(Collectors.toList()),
 				parsed.getParsedOptionValue(outputFileOption, new File("downscaled.zip"))
 		);
+		
+		a.ext.put(Args.atlas, parsed.getParsedOptionValue(formatOption, a.ext.get(Args.atlas)));
+		a.ext.put(Args.fmt, parsed.getParsedOptionValue(maxAtlasSizeOption, a.ext.get(Args.fmt)));
+		
+		return a;
 	}
 	
 	public Args getUIArgs() {

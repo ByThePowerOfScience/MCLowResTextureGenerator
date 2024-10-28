@@ -37,9 +37,9 @@ public class Main {
 	
 	private static final boolean IS_HEADLESS = java.awt.GraphicsEnvironment.isHeadless();
 	
-	private static final int MAX_ATLAS_SIZE = 16384 * 16384;
+	public static final int MAX_ATLAS_SIZE = 16384 * 16384;
 	
-	private static final String packmcmeta = "{\n\t\"pack\":{\n\t\t\"pack_format\": 15,\n\t\t \"description\": \"Compressed textures\"\n\t}\n}";
+	private static final String packmcmeta = "{\n\t\"pack\":{\n\t\t\"pack_format\": %d,\n\t\t \"description\": \"Compressed textures\"\n\t}\n}";
 	
 	private static final UserInterfaceHandler uiHandler = UserInterfaceHandler.get(IS_HEADLESS);
 	
@@ -47,6 +47,7 @@ public class Main {
 		uiHandler.onStart();
 		
 		args = new ArgHandler(IS_HEADLESS).getArgs(argsIn);
+		
 		
 		if (args.outputFile.exists()) {
 			args.outputFile.createNewFile();
@@ -82,9 +83,9 @@ public class Main {
 			boolean hasOperated = false;
 			
 			System.out.println("Starting combined texture size (pixels): " + totalSize.get());
+			long maxAtlasSize = (Long) args.ext.get(Args.atlas);
 			
-			
-			while (!texturesHeap.isEmpty() && (!isAutoscale() || totalSize.get() >= MAX_ATLAS_SIZE)) {
+			while (!texturesHeap.isEmpty() && (!isAutoscale() || totalSize.get() >= maxAtlasSize)) {
 				hasOperated = true;
 				TextureEntry oldEntry = texturesHeap.poll();
 				int oldSize = oldEntry.getTotalSize();
@@ -107,7 +108,7 @@ public class Main {
 			String displayText;
 			if (hasOperated) {
 				File mcmeta = outDirectory.resolve("pack.mcmeta").toFile();
-				FileUtils.write(mcmeta, packmcmeta, StandardCharsets.UTF_8);
+				FileUtils.write(mcmeta, String.format(packmcmeta, (Integer) args.ext.get(Args.fmt)), StandardCharsets.UTF_8);
 				
 				pack(outDirectory, args.outputFile.getAbsolutePath());
 				displayText = "Created zip archive at " + args.outputFile.getAbsolutePath();
