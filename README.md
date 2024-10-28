@@ -4,6 +4,8 @@ This is an app that I spent _WAY_ too long on.
 
 If you can't load a large modpack or texture pack because Minecraft says you need a smaller resource pack, or if you just like crunchy textures, this tool is for you.
 
+(Common error message: `Unable to fit: bloodmagic:models/alchemyarrays/suppressionsigil - size: 512x512 - Maybe try a lower resolution resourcepack?`)
+
 This tool essentially does these things:
 * Goes through every mod/resource pack you give it,
 * If you specified a size, it compresses all block and item textures it can find to that size.
