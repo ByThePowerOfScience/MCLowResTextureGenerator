@@ -6,7 +6,7 @@ import java.util.*;
 import java.util.regex.*;
 import java.util.List;
 import javax.swing.*;
-
+// Source: https://stackoverflow.com/a/343007
 public class TextAreaOutputStream
 		extends OutputStream {
 	
