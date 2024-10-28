@@ -96,4 +96,13 @@ public class Util {
 		System.out.println("Error reading file: " + name);
 		e.printStackTrace(System.err);
 	}
+	
+	static int getClosestPowerOf2(final int i) {
+		// there's a better way to do this but idc enough
+		int out = 2;
+		while (out < i) {
+			out *= 2;
+		}
+		return out / 2;
+	}
 }
