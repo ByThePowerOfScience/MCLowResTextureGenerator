@@ -129,7 +129,7 @@ public class Main {
 				throw new IOException("Image read as null: " + entry.path);
 			}
 			
-			int square = isAutoscale() ? entry.getBestCap() : args.maxScale;
+			int square = isAutoscale() ? entry.getBestCap() : entry.getBestCap(args.maxScale);
 			
 			System.out.println("Compressing: " + entry.path);
 			img = Thumbnailator.createThumbnail(img, square, square); // does keep the aspect ratio the same

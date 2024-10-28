@@ -42,4 +42,19 @@ public class TextureEntry {
 			return Util.getClosestPowerOf2(bigger);
 		}
 	}
+	
+	public int getBestCap(int i) {
+		int bigger = Math.max(dimension.height, dimension.width);
+		int smaller = Math.min(dimension.height, dimension.width);
+		
+		// handle animated textures that are one block stretched over many
+		if (bigger != smaller
+				    && bigger % smaller == 0)
+		{
+			int ratio = bigger / smaller;
+			return i * ratio;
+		} else {
+			return i;
+		}
+	}
 }
