@@ -6,7 +6,7 @@ If you can't load a large modpack or texture pack because Minecraft says you nee
 
 This tool essentially does these things:
 * Goes through every mod/resource pack you give it,
-* If you specifid a size, it compresses all block and item textures it can find to that size.
+* If you specified a size, it compresses all block and item textures it can find to that size.
 * Otherwise, it tries to compress as few items as possible to let your GPU load all the textures. 
   * Most standard graphics cards only support a maximum 16384x16384 texture atlas, so it just tries to get the total pixel count below 16384 * 16384.
   * If your GPU won't work with the default autoscaling, you can set the value lower with `-t <value>`. Something like 16000*16000 should be more than plenty unless some _weirdly_-spaced textures are in there.
